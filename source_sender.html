@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إضافة مصدر — موسوعة آثار الصحابة</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0e0c;
+    color: #e8e0d0;
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  h1 {
+    font-size: 20px;
+    color: #c9a84c;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  textarea {
+    width: 100%;
+    max-width: 580px;
+    height: 180px;
+    background: #141210;
+    border: 1px solid #2e2a22;
+    border-radius: 8px;
+    padding: 14px;
+    color: #e8e0d0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    direction: ltr;
+    text-align: left;
+    resize: vertical;
+    outline: none;
+  }
+  textarea:focus { border-color: #7a6230; }
+  button {
+    margin-top: 14px;
+    width: 100%;
+    max-width: 580px;
+    padding: 13px;
+    background: linear-gradient(135deg, #7a6230, #c9a84c);
+    border: none;
+    border-radius: 8px;
+    color: #0f0e0c;
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #status {
+    margin-top: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    min-height: 20px;
+  }
+  .ok  { color: #4caf7d; }
+  .err { color: #c94c4c; }
+  .wait{ color: #c9a84c; }
+</style>
+</head>
+<body>
+<h1>إضافة مصدر — موسوعة آثار الصحابة</h1>
+<textarea id="json" placeholder='الصق هنا JSON المصدر...'></textarea>
+<button id="btn" onclick="send()">إرسال</button>
+<div id="status"></div>
+<script>
+async function send() {
+  const raw = document.getElementById('json').value.trim();
+  const btn = document.getElementById('btn');
+  const st  = document.getElementById('status');
+  if (!raw) { st.className='err'; st.textContent='الحقل فارغ'; return; }
+  let payload;
+  try { payload = JSON.parse(raw); }
+  catch(e) { st.className='err'; st.textContent='JSON غير صحيح: ' + e.message; return; }
+  btn.disabled = true;
+  st.className='wait'; st.textContent='جارٍ الإرسال...';
+  try {
+    const res = await fetch('https://hook.eu1.make.com/mwb7sr1csxked8qf94cd65vf57jhexvt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const txt = await res.text();
+    if (res.ok) { st.className='ok'; st.textContent='✓ تم الإرسال بنجاح'; }
+    else { st.className='err'; st.textContent='خطأ: ' + txt; }
+  } catch(e) {
+    st.className='err'; st.textContent='فشل الاتصال: ' + e.message;
+  }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>

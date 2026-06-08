@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>إدارة ملف الرواة — موسوعة آثار الصحابة</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0e0c;
+    color: #e8e0d0;
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 20px; color: #c9a84c; margin-bottom: 8px; text-align: center; }
+  .sub { font-size: 12px; color: #8a7f6e; text-align: center; margin-bottom: 28px; }
+
+  .tabs { display: flex; gap: 6px; justify-content: center; }
+  .tab {
+    padding: 9px 18px;
+    border: 1px solid #2e2a22;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Cairo', sans-serif;
+    background: #1a1814;
+    color: #8a7f6e;
+    transition: all 0.2s;
+  }
+  .tab.active { background: #141210; color: #c9a84c; }
+
+  .card {
+    width: 100%;
+    max-width: 580px;
+    background: #141210;
+    border: 1px solid #2e2a22;
+    border-radius: 0 8px 8px 8px;
+    padding: 28px;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: #8a7f6e;
+    margin-bottom: 12px;
+    background: #1a1814;
+    border: 1px solid #2e2a22;
+    border-radius: 6px;
+    padding: 10px 14px;
+    line-height: 1.9;
+  }
+  .hint code { color: #c9a84c; direction: ltr; display: inline-block; }
+
+  textarea {
+    width: 100%;
+    height: 200px;
+    background: #0f0e0c;
+    border: 1px solid #2e2a22;
+    border-radius: 8px;
+    padding: 14px;
+    color: #e8e0d0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    direction: ltr;
+    text-align: left;
+    resize: vertical;
+    outline: none;
+    margin-bottom: 14px;
+  }
+  textarea:focus { border-color: #7a6230; }
+
+  button.btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #7a6230, #c9a84c);
+    border: none;
+    border-radius: 8px;
+    color: #0f0e0c;
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button.btn:hover { opacity: 0.85; }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #status { margin-top: 12px; font-size: 14px; font-weight: 600; text-align: center; min-height: 20px; white-space: pre-line; }
+  .ok   { color: #4caf7d; }
+  .err  { color: #c94c4c; }
+  .wait { color: #c9a84c; }
+
+  #panel-view { display: none; }
+  .view-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .view-btns button {
+    flex: 1; padding: 9px;
+    border: 1px solid #2e2a22; border-radius: 6px;
+    background: #1a1814; color: #c9a84c;
+    font-family: 'Cairo', sans-serif; font-size: 13px; cursor: pointer;
+  }
+  .view-btns button:hover { background: #2e2a22; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #1a1814; color: #c9a84c; padding: 8px; text-align: right; border-bottom: 1px solid #2e2a22; }
+  td { padding: 8px; border-bottom: 1px solid #1a1814; color: #e8e0d0; vertical-align: top; }
+  tr:hover td { background: #1a1814; }
+  .loading { color: #8a7f6e; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>إدارة ملف الرواة</h1>
+<p class="sub">موسوعة آثار الصحابة</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('add', this)">إضافة</button>
+  <button class="tab" onclick="switchTab('view', this)">عرض</button>
+</div>
+
+<div class="card">
+
+  <div id="panel-add">
+    <div class="hint">
+      الصيغة — مصفوفة تحتوي سجلاً أو أكثر، كل سجل فيه مفتاح <code>"ورقة"</code>:<br><br>
+      <code>[</code><br>
+      <code>&nbsp;{"ورقة":"الأسماء الكاملة","مختصر":"...","كامل":"...","ملاحظة":"..."},</code><br>
+      <code>&nbsp;{"ورقة":"قواعد الأسانيد","قاعدة":"...","تفصيل":"...","ملاحظة":"..."},</code><br>
+      <code>&nbsp;{"ورقة":"المشتركون والمتشابهون","اسم":"...","تمييز":"...","ملاحظة":"..."}</code><br>
+      <code>]</code>
+    </div>
+    <textarea id="json-input" placeholder="الصق هنا JSON المصفوفة..."></textarea>
+    <button class="btn" onclick="addRows()">إضافة إلى ملف الرواة</button>
+    <div id="status"></div>
+  </div>
+
+  <div id="panel-view">
+    <div class="view-btns">
+      <button onclick="loadSheet('الأسماء الكاملة')">الأسماء الكاملة</button>
+      <button onclick="loadSheet('قواعد الأسانيد')">قواعد الأسانيد</button>
+      <button onclick="loadSheet('المشتركون والمتشابهون')">المشتركون</button>
+    </div>
+    <div id="view-content" class="loading">اضغط على أحد الأزرار لعرض البيانات</div>
+  </div>
+
+</div>
+
+<script>
+const SHEET_ID = "1NZSekJW42vxvHakTEJVok6b1l4PFtqYm9V2Bwnc0_K8";
+const SA_EMAIL = "rawat-editor@sahaba-project-498610.iam.gserviceaccount.com";
+const SA_KEY = "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDQhmz57bqSfKDI\nV8lYZ4HUJ2S61G16+mdnWwrQIy5ItAzhoKV2WwnqVbfnjeB234EDDFGf237mFIOk\neX2wZBTyOL+8fxBsJN+Qsef4OSWQORkdbpj9OeT0JkT1czpVlPn1HoQAoTf3dbwg\nY0TaQn57NxUnLNc15qW2zp/eS2xu6C218qWjcZ84vsRYNkPl+/zy1AEE8lGOW5BL\nOGKGVqrOZs5QrYOyb+8kCDp2apl/+9HCq/pxme+tvKr/np6A/mnKJn0wK69cJi82\n/zcwaGw4LRk+zZ2RyqAZt6VFsz2+DaGo9zVuBUUf4eE/zEPAwgNaYMRPpJkgxx9L\nonSwoITFAgMBAAECggEAQ0AXRUN2OGgZMoOdW/WF2XYa9mYsKM05LAwgoJ+3/ZqT\nzPCSbGlP+VNLzFHlYnESmnkOmg+gDXPwQMstzgV4++VxcMlJ8paxw2ic92D2zFyd\nzPAuRvy06kitVLukxJUXSAZfbBSSiCxgT9G0Eu/++p35JHlBrxCDwUFCLd8FSX7i\nmdfMQDRMpIPYNaOVKw5iG475ccRuwQO+dU43s6NKIxEmF3d6l2pSW5wyFPFmjAic\nAKjnBdgjLqt3WZcMXxKHWyPcuJbHuypWw7EBSgFqAq/RtzlnP/yDbAQf1rInDGtm\ncAHF+171Adf2/tlrdGnW9usJu2vER0to1YQFejtIwQKBgQDwWY6j+xsmt/X/03k0\nD+Ll1MHZBliyZeo30bPcGxb8eh50hhlB7Y+M+Q8VyLpv2yQ8BLTIh/DFrU6oYFEW\nHVA/qw72dUyu2tZE6ztXOs5XFHg4VjmGRdREYiSI4oE/G3bF2gTbg7mRYrG9M9b6\nfTiLyUMqsiJgvVUXirs8Uny9YwKBgQDeGmAOi3S9lIuRoUbpSb/JSUYINBzQHxxG\n7HoYtbnMGKbPg0r6d35mXAUvtfqiNsc1gjfUId7t1/GFwjR2GUb9MJdVjLTAVhJE\nC7gv3MOBa3wLQ4a84CsHUGK2g+wQF/941gR+xTi0ssKKev8LeGDTm/GZ7LQHUmU9\nCQg5vtVBtwKBgQCu3HkqVEYspSoUNYa4mdY539AoVLWzFPKSKb7xI8RVa4M8w1Mc\n4/jMV2biMmdxeb2i7MmaG0zQhIX1eh2EOU9pAsqgBDcF/7Bj87/4dpAoSnwsgI7Z\nYXRNTBnIfQILJ7ABwdxG2E7ptyQYwt5k3zWEfaigJ3lbaGO//O67tEeMgQKBgQDQ\nKgg9mZcg2Ei3hWDg5a5LCdIJfk5DAeWO07Tb0/b/w1sUwwlTFwvxA+4YeYce4hhz\nnkiVGenHIc3Mf+iLh8VxKEmudOI0InecLx/CPDdA5WytYey2uaOah0z9o0dtDhDz\nQCOWbWJoeeK7x+ui5IBb1Jzsl11kP2WDfyOme6WEoQKBgDyzGvsfwi4egEQ057fD\nipkPKWXWrFKSeM46A897YTpK4x8LD9FiWWLxVuWbLHP8VaRFrb+rJp4EhESK92al\n99adMp12OgIVfN0Bo7m3cYsPuuZnoo8qQHG4DSxjGdNuchwz6IJXtdICQ2Yj5s/4\nbZPRNEEwOpXoGmuCsGwpoTl+\n-----END PRIVATE KEY-----\n";
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-add').style.display = name === 'add' ? 'block' : 'none';
+  document.getElementById('panel-view').style.display = name === 'view' ? 'block' : 'none';
+}
+
+function st(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = cls;
+}
+
+async function getToken() {
+  const enc = obj => btoa(JSON.stringify(obj)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const now = Math.floor(Date.now()/1000);
+  const header = {alg:"RS256",typ:"JWT"};
+  const claim = {iss:SA_EMAIL, scope:"https://www.googleapis.com/auth/spreadsheets", aud:"https://oauth2.googleapis.com/token", exp:now+3600, iat:now};
+  const toSign = enc(header)+"."+enc(claim);
+  const pem = SA_KEY.replace("-----BEGIN PRIVATE KEY-----","").replace("-----END PRIVATE KEY-----","").replace(/\n/g,"");
+  const der = Uint8Array.from(atob(pem), c=>c.charCodeAt(0));
+  const ck = await crypto.subtle.importKey("pkcs8",der.buffer,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5",ck,new TextEncoder().encode(toSign));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+  const jwt = toSign+"."+sigB64;
+  const r = await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`});
+  return (await r.json()).access_token;
+}
+
+async function appendToSheet(token, sheet, row) {
+  const resp = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheet)}!A:C:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    { method:"POST", headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}, body:JSON.stringify({values:[row]}) }
+  );
+  return await resp.json();
+}
+
+async function addRows() {
+  const raw = document.getElementById('json-input').value.trim();
+  if (!raw) { st('الحقل فارغ','err'); return; }
+  let arr;
+  try { arr = JSON.parse(raw); } catch(e) { st('JSON غير صحيح: '+e.message,'err'); return; }
+  if (!Array.isArray(arr)) { st('المطلوب مصفوفة [ ]','err'); return; }
+
+  const btn = document.querySelector('.btn');
+  btn.disabled = true; st('جارٍ الإضافة...','wait');
+
+  try {
+    const token = await getToken();
+    let ok = 0, errors = [];
+
+    for (const p of arr) {
+      const sheet = p['ورقة'];
+      let row;
+      if (sheet === 'الأسماء الكاملة') {
+        row = [p['مختصر']||'', p['كامل']||'', p['ملاحظة']||''];
+      } else if (sheet === 'قواعد الأسانيد') {
+        row = [p['قاعدة']||'', p['تفصيل']||'', p['ملاحظة']||''];
+      } else if (sheet === 'المشتركون والمتشابهون') {
+        row = [p['اسم']||'', p['تمييز']||'', p['ملاحظة']||''];
+      } else {
+        errors.push('ورقة غير معروفة: ' + sheet); continue;
+      }
+      const res = await appendToSheet(token, sheet, row);
+      if (res.updates) ok++;
+      else errors.push('خطأ في: ' + (row[0]||sheet));
+    }
+
+    let msg = `✓ تمت إضافة ${ok} من ${arr.length}`;
+    if (errors.length) msg += '\n' + errors.join('\n');
+    st(msg, errors.length ? 'err' : 'ok');
+    if (!errors.length) document.getElementById('json-input').value = '';
+
+  } catch(e) { st('فشل الاتصال: '+e.message,'err'); }
+  btn.disabled = false;
+}
+
+async function loadSheet(sheet) {
+  const el = document.getElementById('view-content');
+  el.innerHTML = '<p class="loading">جارٍ التحميل...</p>';
+  try {
+    const token = await getToken();
+    const resp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheet)}`,{headers:{"Authorization":"Bearer "+token}});
+    const data = await resp.json();
+    const rows = data.values||[];
+    if (!rows.length) { el.innerHTML='<p>لا توجد بيانات</p>'; return; }
+    let html=`<p style="color:#8a7f6e;font-size:12px;margin-bottom:10px">${sheet} — ${rows.length-1} إدخال</p><table><thead><tr>`;
+    rows[0].forEach(h=>html+=`<th>${h}</th>`);
+    html+='</tr></thead><tbody>';
+    rows.slice(1).forEach(r=>{html+='<tr>';r.forEach(c=>html+=`<td>${c||''}</td>`);html+='</tr>';});
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  } catch(e) { el.innerHTML='<p style="color:#c94c4c">'+e.message+'</p>'; }
+}
+</script>
+</body>
+</html>
