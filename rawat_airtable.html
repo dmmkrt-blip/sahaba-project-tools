@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إضافة رواة — موسوعة آثار الصحابة</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0e0c; color: #e8e0d0;
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh; display: flex;
+    flex-direction: column; align-items: center;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 20px; color: #c9a84c; margin-bottom: 8px; text-align: center; }
+  .sub { font-size: 12px; color: #8a7f6e; text-align: center; margin-bottom: 28px; }
+
+  .tabs { display: flex; gap: 6px; justify-content: center; }
+  .tab {
+    padding: 9px 18px; border: 1px solid #2e2a22; border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer;
+    font-size: 13px; font-family: 'Cairo', sans-serif;
+    background: #1a1814; color: #8a7f6e; transition: all 0.2s;
+  }
+  .tab.active { background: #141210; color: #c9a84c; }
+
+  .card {
+    width: 100%; max-width: 580px;
+    background: #141210; border: 1px solid #2e2a22;
+    border-radius: 0 8px 8px 8px; padding: 28px;
+  }
+
+  .hint {
+    font-size: 11px; color: #8a7f6e; margin-bottom: 12px;
+    background: #1a1814; border: 1px solid #2e2a22;
+    border-radius: 6px; padding: 10px 14px; line-height: 1.9;
+  }
+  .hint code { color: #c9a84c; direction: ltr; display: inline-block; }
+
+  textarea {
+    width: 100%; height: 200px;
+    background: #0f0e0c; border: 1px solid #2e2a22;
+    border-radius: 8px; padding: 14px;
+    color: #e8e0d0; font-family: 'Courier New', monospace;
+    font-size: 13px; direction: ltr; text-align: left;
+    resize: vertical; outline: none; margin-bottom: 14px;
+  }
+  textarea:focus { border-color: #7a6230; }
+
+  button.btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #7a6230, #c9a84c);
+    border: none; border-radius: 8px; color: #0f0e0c;
+    font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  button.btn:hover { opacity: 0.85; }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #status { margin-top: 12px; font-size: 14px; font-weight: 600; text-align: center; min-height: 20px; white-space: pre-line; }
+  .ok  { color: #4caf7d; }
+  .err { color: #c94c4c; }
+  .wait{ color: #c9a84c; }
+
+  #panel-view { display: none; }
+  .view-btns { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .view-btns button {
+    flex: 1; padding: 9px; border: 1px solid #2e2a22; border-radius: 6px;
+    background: #1a1814; color: #c9a84c;
+    font-family: 'Cairo', sans-serif; font-size: 13px; cursor: pointer;
+  }
+  .view-btns button:hover { background: #2e2a22; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #1a1814; color: #c9a84c; padding: 8px; text-align: right; border-bottom: 1px solid #2e2a22; }
+  td { padding: 8px; border-bottom: 1px solid #1a1814; color: #e8e0d0; vertical-align: top; }
+  tr:hover td { background: #1a1814; }
+  .loading { color: #8a7f6e; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>إضافة رواة — Airtable</h1>
+<p class="sub">موسوعة آثار الصحابة</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('add', this)">إضافة</button>
+  <button class="tab" onclick="switchTab('view', this)">عرض</button>
+</div>
+
+<div class="card">
+
+  <div id="panel-add">
+    <div class="hint">
+      مصفوفة تحتوي سجلاً أو أكثر، كل سجل فيه مفتاح <code>"جدول"</code>:<br><br>
+      <code>[</code><br>
+      <code>&nbsp;{"جدول":"رواة — أسماء كاملة","الاسم المختصر":"...","الاسم الكامل":"...","ملاحظة":"..."},</code><br>
+      <code>&nbsp;{"جدول":"رواة — قواعد الأسانيد","القاعدة":"...","التفصيل":"...","ملاحظة":"..."},</code><br>
+      <code>&nbsp;{"جدول":"رواة — مشتركون","الاسم":"...","التمييز":"...","ملاحظة":"..."}</code><br>
+      <code>]</code>
+    </div>
+    <textarea id="json-input" placeholder="الصق هنا JSON المصفوفة..."></textarea>
+    <button class="btn" onclick="addRows()">إضافة إلى Airtable</button>
+    <div id="status"></div>
+  </div>
+
+  <div id="panel-view">
+    <div class="view-btns">
+      <button onclick="loadTable('رواة — أسماء كاملة', ['الاسم المختصر','الاسم الكامل','ملاحظة'])">الأسماء الكاملة</button>
+      <button onclick="loadTable('رواة — قواعد الأسانيد', ['القاعدة','التفصيل','ملاحظة'])">قواعد الأسانيد</button>
+      <button onclick="loadTable('رواة — مشتركون', ['الاسم','التمييز','ملاحظة'])">المشتركون</button>
+    </div>
+    <div id="view-content" class="loading">اضغط على أحد الأزرار لعرض البيانات</div>
+  </div>
+
+</div>
+
+<script>
+const TOKEN = 'patIxht7gMvz6WuH6.62dccb1ca5b853ca3e9605427c6b3890360676f47768ef04a94fede56d285ebb';
+const BASE  = 'appD7L8R2q9z3H7K3';
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-add').style.display = name === 'add' ? 'block' : 'none';
+  document.getElementById('panel-view').style.display = name === 'view' ? 'block' : 'none';
+}
+
+function st(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = cls;
+}
+
+async function addToTable(table, fields) {
+  const res = await fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records: [{ fields }] })
+  });
+  return await res.json();
+}
+
+async function addRows() {
+  const raw = document.getElementById('json-input').value.trim();
+  if (!raw) { st('الحقل فارغ', 'err'); return; }
+  let arr;
+  try { arr = JSON.parse(raw); } catch(e) { st('JSON غير صحيح: ' + e.message, 'err'); return; }
+  if (!Array.isArray(arr)) { st('المطلوب مصفوفة [ ]', 'err'); return; }
+
+  const btn = document.querySelector('.btn');
+  btn.disabled = true; st('جارٍ الإضافة...', 'wait');
+
+  let ok = 0, errors = [];
+  for (const p of arr) {
+    const table = p['جدول'];
+    if (!table) { errors.push('مفتاح "جدول" مفقود'); continue; }
+    const { جدول, ...fields } = p;
+    // تنظيف القيم الفارغة
+    Object.keys(fields).forEach(k => { if (!fields[k]) delete fields[k]; });
+    const res = await addToTable(table, fields);
+    if (res.records || res.id) ok++;
+    else errors.push('خطأ في: ' + JSON.stringify(fields).slice(0,50));
+  }
+
+  let msg = `✓ تمت إضافة ${ok} من ${arr.length}`;
+  if (errors.length) msg += '\n' + errors.join('\n');
+  st(msg, errors.length ? 'err' : 'ok');
+  if (!errors.length) document.getElementById('json-input').value = '';
+  btn.disabled = false;
+}
+
+async function loadTable(table, fields) {
+  const el = document.getElementById('view-content');
+  el.innerHTML = '<p class="loading">جارٍ التحميل...</p>';
+  try {
+    let records = [], offset = null;
+    do {
+      let url = `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100`;
+      fields.forEach(f => url += `&fields[]=${encodeURIComponent(f)}`);
+      if (offset) url += `&offset=${offset}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      records = records.concat(data.records);
+      offset = data.offset;
+    } while (offset);
+
+    let html = `<p style="color:#8a7f6e;font-size:12px;margin-bottom:10px">${table} — ${records.length} إدخال</p>`;
+    html += '<table><thead><tr>';
+    fields.forEach(h => html += `<th>${h}</th>`);
+    html += '</tr></thead><tbody>';
+    records.forEach(r => {
+      html += '<tr>';
+      fields.forEach(f => html += `<td>${r.fields[f]||''}</td>`);
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = `<p style="color:#c94c4c">${e.message}</p>`; }
+}
+</script>
+</body>
+</html>

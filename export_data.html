@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>استخراج بيانات المشروع</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0e0c; color: #e8e0d0;
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh; padding: 30px 20px;
+  }
+  h1 { font-size: 20px; color: #c9a84c; margin-bottom: 6px; text-align: center; }
+  .sub { font-size: 12px; color: #8a7f6e; text-align: center; margin-bottom: 24px; }
+
+  .actions { display: flex; gap: 10px; max-width: 800px; margin: 0 auto 20px; }
+  .btn {
+    flex: 1; padding: 12px;
+    border: none; border-radius: 8px;
+    font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-load { background: linear-gradient(135deg, #7a6230, #c9a84c); color: #0f0e0c; }
+  .btn-export { background: #1a3a1a; color: #4caf7d; border: 1px solid #4caf7d; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #status { text-align: center; font-size: 13px; color: #c9a84c; margin-bottom: 16px; min-height: 18px; }
+
+  .tabs { display: flex; gap: 6px; max-width: 800px; margin: 0 auto 0; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 14px; border: 1px solid #2e2a22; border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer;
+    font-size: 12px; font-family: 'Cairo', sans-serif;
+    background: #1a1814; color: #8a7f6e;
+  }
+  .tab.active { background: #141210; color: #c9a84c; }
+
+  .panel {
+    display: none; max-width: 800px; margin: 0 auto;
+    background: #141210; border: 1px solid #2e2a22;
+    border-radius: 0 8px 8px 8px; padding: 16px;
+    max-height: 500px; overflow-y: auto;
+  }
+  .panel.active { display: block; }
+  .count { font-size: 11px; color: #8a7f6e; margin-bottom: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #1a1814; color: #c9a84c; padding: 8px; text-align: right; border-bottom: 1px solid #2e2a22; }
+  td { padding: 7px 8px; border-bottom: 1px solid #0f0e0c; color: #e8e0d0; vertical-align: top; }
+  tr:hover td { background: #1a1814; }
+  .empty { color: #8a7f6e; font-size: 13px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+
+<h1>استخراج بيانات المشروع</h1>
+<p class="sub">موسوعة آثار الصحابة</p>
+
+<div class="actions">
+  <button class="btn btn-load" id="loadBtn" onclick="loadAll()">تحميل البيانات</button>
+  <button class="btn btn-export" id="exportBtn" onclick="exportExcel()" disabled>تصدير Excel</button>
+</div>
+<div id="status"></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('sahaba',this)">الصحابة</button>
+  <button class="tab" onclick="switchTab('asma',this)">أسماء الرواة</button>
+  <button class="tab" onclick="switchTab('qawaid',this)">قواعد الأسانيد</button>
+  <button class="tab" onclick="switchTab('mushtarak',this)">المشتركون</button>
+  <button class="tab" onclick="switchTab('tasnif',this)">التصنيفات</button>
+</div>
+
+<div class="panel active" id="panel-sahaba"><p class="empty">اضغط تحميل</p></div>
+<div class="panel" id="panel-asma"><p class="empty">اضغط تحميل</p></div>
+<div class="panel" id="panel-qawaid"><p class="empty">اضغط تحميل</p></div>
+<div class="panel" id="panel-mushtarak"><p class="empty">اضغط تحميل</p></div>
+<div class="panel" id="panel-tasnif"><p class="empty">اضغط تحميل</p></div>
+
+<script>
+const TOKEN = 'patIxht7gMvz6WuH6.62dccb1ca5b853ca3e9605427c6b3890360676f47768ef04a94fede56d285ebb';
+const BASE  = 'appD7L8R2q9z3H7K3';
+
+let sheets = {};
+
+async function fetchTable(table, fields) {
+  let records = [], offset = null;
+  do {
+    let url = `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100`;
+    if (fields) fields.forEach(f => url += `&fields[]=${encodeURIComponent(f)}`);
+    if (offset) url += `&offset=${offset}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    const d = await res.json();
+    if (d.error) throw new Error(table + ': ' + d.error.message);
+    records = records.concat(d.records);
+    offset = d.offset;
+  } while (offset);
+  return records;
+}
+
+function st(msg) { document.getElementById('status').textContent = msg; }
+
+async function loadAll() {
+  const btn = document.getElementById('loadBtn');
+  btn.disabled = true;
+  sheets = {};
+  try {
+    st('جارٍ تحميل الصحابة...');
+    const s = await fetchTable('الصحابة', ['الاسم الكامل']);
+    sheets['الصحابة'] = { headers: ['الاسم الكامل'], rows: s.map(r => [r.fields['الاسم الكامل']||'']) };
+    renderTable('sahaba', sheets['الصحابة'].headers, sheets['الصحابة'].rows);
+
+    st('جارٍ تحميل أسماء الرواة...');
+    const a = await fetchTable('رواة — أسماء كاملة');
+    sheets['أسماء الرواة'] = { headers: ['الاسم المختصر','الاسم الكامل','ملاحظة'], rows: a.map(r=>[r.fields['الاسم المختصر']||'', r.fields['الاسم الكامل']||'', r.fields['ملاحظة']||'']) };
+    renderTable('asma', sheets['أسماء الرواة'].headers, sheets['أسماء الرواة'].rows);
+
+    st('جارٍ تحميل قواعد الأسانيد...');
+    const q = await fetchTable('رواة — قواعد الأسانيد');
+    sheets['قواعد الأسانيد'] = { headers: ['القاعدة','التفصيل','ملاحظة'], rows: q.map(r=>[r.fields['القاعدة']||'', r.fields['التفصيل']||'', r.fields['ملاحظة']||'']) };
+    renderTable('qawaid', sheets['قواعد الأسانيد'].headers, sheets['قواعد الأسانيد'].rows);
+
+    st('جارٍ تحميل المشتركين...');
+    const m = await fetchTable('رواة — مشتركون');
+    sheets['المشتركون'] = { headers: ['الاسم','التمييز','ملاحظة'], rows: m.map(r=>[r.fields['الاسم']||'', r.fields['التمييز']||'', r.fields['ملاحظة']||'']) };
+    renderTable('mushtarak', sheets['المشتركون'].headers, sheets['المشتركون'].rows);
+
+    st('جارٍ تحميل التصنيفات...');
+    const t = await fetchTable('التصنيف الموضوعي', ['رقم التصنيف','اسم الموضوع','المستوى']);
+    const fasls = t.filter(r => r.fields['المستوى'] === 'فصل');
+    sheets['التصنيفات'] = { headers: ['رقم التصنيف','اسم الفصل','Record ID'], rows: fasls.map(r=>[r.fields['رقم التصنيف']||'', r.fields['اسم الموضوع']||'', r.id]) };
+    renderTable('tasnif', sheets['التصنيفات'].headers, sheets['التصنيفات'].rows);
+
+    const total = Object.values(sheets).reduce((s,v)=>s+v.rows.length,0);
+    st(`✓ تم التحميل — ${sheets['الصحابة'].rows.length} صحابي | ${sheets['أسماء الرواة'].rows.length} راوٍ | ${sheets['قواعد الأسانيد'].rows.length} قاعدة | ${sheets['المشتركون'].rows.length} مشترك | ${sheets['التصنيفات'].rows.length} فصل`);
+    document.getElementById('exportBtn').disabled = false;
+
+  } catch(e) { st('❌ خطأ: ' + e.message); }
+  btn.disabled = false;
+}
+
+function renderTable(id, headers, rows) {
+  const el = document.getElementById('panel-' + id);
+  let html = `<p class="count">${rows.length} سجل</p><table><thead><tr>`;
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => { html += '<tr>'; row.forEach(c => html += `<td>${c||''}</td>`); html += '</tr>'; });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  Object.entries(sheets).forEach(([name, {headers, rows}]) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+  XLSX.writeFile(wb, 'بيانات-المشروع.xlsx');
+}
+</script>
+</body>
+</html>
